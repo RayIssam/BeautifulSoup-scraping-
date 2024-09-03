@@ -29,23 +29,39 @@ for div in divs:
             page_soup = BeautifulSoup(page_response.content, "html.parser")
 
             # Find the title in the <h1> inside the div with id 'block-blackboard-page-title'
-            title_tag = page_soup.find("div", id="block-blackboard-page-title").find("h1")
-            title = title_tag.get_text(strip=True) if title_tag else "Untitled"
+            title_tag = page_soup.find("div", id="block-blackboard-page-title")
+            if title_tag:
+                h1_tag = title_tag.find("h1")
+                title = h1_tag.get_text(strip=True) if h1_tag else "Untitled"
+            else:
+                title = "Untitled"
 
-            # Find all content within the div with id 'block-blackboard-content'
+            # Find the article within the div with id 'block-blackboard-content'
             content_div = page_soup.find("div", id="block-blackboard-content")
-            content = ""
-
             if content_div:
-                for element in content_div.find_all():
-                    if element.name in ["p", "h1", "h2", "h3", "h4", "h5", "h6", "div", "span"]:
-                        text = element.get_text(separator=" ", strip=True)
-                        if text:
-                            content += text + "\n\n"
-                    elif element.name in ["img", "video"]:
-                        src = element.get("src")
-                        if src:
-                            content += f"[MEDIA: {src}]\n"
+                article = content_div.find("article")
+                if article:
+                    # Find all divs with the specific class within the article
+                    target_divs = article.find_all(
+                        "div",
+                        class_="field field--name-field-content-page-paragraphs field--type-entity-reference-revisions field--label-hidden field__items"
+                    )
+                    content = ""
+
+                    for target_div in target_divs:
+                        for element in target_div.find_all():
+                            if element.name in ["p", "h1", "h2", "h3", "h4", "h5", "h6", "div", "span"]:
+                                text = element.get_text(separator=" ", strip=True)
+                                if text:
+                                    content += text + "\n\n"
+                            elif element.name in ["img", "video"]:
+                                src = element.get("src")
+                                if src:
+                                    content += f"[MEDIA: {src}]\n"
+                else:
+                    print("Article not found inside 'block-blackboard-content'.")
+            else:
+                print("Div with id 'block-blackboard-content' not found.")
 
             # Define the file name based on the title (sanitize to make it file-system safe)
             filename = "".join(x for x in title if x.isalnum() or x in "._- ").strip() + ".txt"
