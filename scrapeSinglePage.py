@@ -3,7 +3,8 @@ from bs4 import BeautifulSoup
 import re
 
 # URL of the webpage to scrape
-url = "https://help.blackboard.com/Learn/Student/Ultra/Getting_Started/Browser_Support"
+url = "https://help.blackboard.com/Learn/Student/Ultra/Interact/Messages"
+base_url = "https://help.blackboard.com/"
 
 # Make a request to fetch the webpage content
 response = requests.get(url)
@@ -21,62 +22,42 @@ article_content = soup.find('article')
 # Initialize content to save
 content_to_save = f"Title: {title}\n\n"
 
+# Function to process and replace images and videos with their URLs
+def process_element(element):
+    if element.name == 'img':
+        img_src = element.get('src')
+        if img_src:
+            full_url = f"{base_url}{img_src.lstrip('/')}"  # Construct full URL
+            return f'[Image: {full_url}]'
+    elif element.name == 'video':
+        video_src = element.get('src')
+        if video_src:
+            full_url = f"{base_url}{video_src.lstrip('/')}"  # Construct full URL
+            return f'[Video: {full_url}]'
+        else:
+            # Check for <source> tags within the video tag
+            source_tags = element.find_all('source')
+            for source in source_tags:
+                source_src = source.get('src')
+                if source_src:
+                    full_url = f"{base_url}{source_src.lstrip('/')}"  # Construct full URL
+                    return f'[Video: {full_url}]'
+    return element.get_text(strip=True)
+
 # Check if the article content exists
 if article_content:
-    # Extract all text
-    content_to_save += article_content.get_text(separator='\n', strip=True)
-
-    # Extract image sources
-    images = article_content.find_all('img')
-    if images:
-        content_to_save += "\n\nImages:\n"
-        for img in images:
-            img_src = img.get('src')
-            content_to_save += f"{img_src}\n"
-
-    # Extract video sources
-    videos = article_content.find_all('video')
-    if videos:
-        content_to_save += "\n\nVideos:\n"
-        for video in videos:
-            # Check for video source or child <source> tags
-            video_src = video.get('src')
-            if video_src:
-                content_to_save += f"{video_src}\n"
-            else:
-                # Check for <source> tags within the video tag
-                source_tags = video.find_all('source')
-                for source in source_tags:
-                    source_src = source.get('src')
-                    if source_src:
-                        content_to_save += f"{source_src}\n"
-
-    # Extract iframe sources
-    iframes = article_content.find_all('iframe')
-    if iframes:
-        content_to_save += "\n\nIframes:\n"
-        for iframe in iframes:
-            iframe_src = iframe.get('src')
-            if iframe_src:
-                content_to_save += f"{iframe_src}\n"
-
-    # Extract background image URLs from styles
-    background_divs = article_content.find_all('div', class_='ytp-cued-thumbnail-overlay-image')
-    if background_divs:
-        content_to_save += "\n\nBackground Images:\n"
-        for div in background_divs:
-            style = div.get('style')
-            # Extract URL from style attribute using regex
-            url_match = re.search(r'url\("(.+?)"\)', style)
-            if url_match:
-                content_to_save += f"{url_match.group(1)}\n"
-
-else:
-    content_to_save += "No article content found."
+    # Traverse and process the elements to replace images and videos with their URLs
+    for element in article_content.descendants:
+        if element.name in ['img', 'video']:
+            content_to_save += process_element(element) + '\n'
+        elif isinstance(element, str):
+            content_to_save += element.strip() + '\n'
+        elif element.name == 'br':
+            content_to_save += '\n'
 
 # Print the content
 print(content_to_save)
 
 # Optionally, save the content to a text file
-with open('browser_support.txt', 'w', encoding='utf-8') as file:
+with open('Messages.txt', 'w', encoding='utf-8') as file:
     file.write(content_to_save)
